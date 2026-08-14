@@ -4,9 +4,7 @@ requests
 yt_dlp
 youtube_search
 pytz
-#googletrans==3.1.0a0
 hijri_converter
-#getids
 akinator
 pySmartDL
 pysocket
