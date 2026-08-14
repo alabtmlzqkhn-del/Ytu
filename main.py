@@ -4,7 +4,7 @@ from pyrogram import Client, idle
 
 from localdb import r
 
-token = os.getenv("8516176029:AAHK_mtMsV-ikdD9j9ahKa99BIukwTzXAD0") or os.getenv("TOKEN")
+token = os.getenv("8516176029:AAFnPWb7xfWb6UGR1rlmziFua3CZ-X5mQdI") or os.getenv("TOKEN")
 owner_raw = os.getenv("8065884629")
 
 if not token:
