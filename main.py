@@ -4,8 +4,8 @@ from pyrogram import Client, idle
 
 from localdb import r
 
-token = os.getenv("BOT_TOKEN") or os.getenv("TOKEN")
-owner_raw = os.getenv("OWNER_ID")
+token = os.getenv("8516176029:AAHK_mtMsV-ikdD9j9ahKa99BIukwTzXAD0") or os.getenv("TOKEN")
+owner_raw = os.getenv("8065884629")
 
 if not token:
     raise RuntimeError("BOT_TOKEN environment variable is missing.")
