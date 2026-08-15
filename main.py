@@ -13,7 +13,7 @@ from pyrogram import Client, idle
 TOKEN = "8516176029:AAEiCQLVCf1HYoB4WOgwdK_cCAwsJXGyR2g"
 OWNER_ID = 8065884629
 
-REDIS_URL = "redis://@redis.railway.internal:6379"
+REDIS_URL = "redis://default:nFqeVQriqnXpFInOzCYxSvzHKreFWKvz@redis.railway.internal:6379"
 
 
 # ==============================
