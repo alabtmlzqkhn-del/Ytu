@@ -9,7 +9,7 @@ from pyrogram import Client, idle
 # إعدادات البوت
 # ==============================
 
-TOKEN = os.getenv("8516176029:AAEiCQLVCf1HYoB4WOgwdK_cCAwsJXGyR2g")
+TOKEN = os.getenv("8516176029:AAEnZZ9tO8EfPTzrc1TXnE1QcniuxYwcaqQ")
 OWNER_ID = os.getenv("8065884629")
 
 # إذا ما موجودة Variables، يحاول يقرأ information.py
