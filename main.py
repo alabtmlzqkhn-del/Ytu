@@ -12,7 +12,7 @@ Dev_Neptune = token.split(':')[0]
 # 2. الاتصال بـ Redis
 # على Railway: أضف خدمة Redis من New -> Database -> Add Redis
 # راح تنضاف تلقائياً متغير بيئة REDIS_URL نستخدمه هنا
-REDIS_URL = os.environ.get("redis://default:nFqeVQriqnXpFInOzCYxSvzHKreFWKvz@redis.railway.internal:6379", "redis://localhost:6379")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 r = None
 for _ in range(15):
     try:
