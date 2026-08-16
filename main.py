@@ -5,8 +5,8 @@ from pyrogram import *
 # على Railway: يتم أخذ القيم من Environment Variables (TOKEN و OWNER_ID)
 # محلياً (على جهازك): إذا ما كانت موجودة كمتغيرات بيئة، يطلبها بـ input() كالسابق
 to_config = ""
-token = os.environ.get("TOKEN") or input("[+] TOKEN BOT :")
-owner_id = os.environ.get("OWNER_ID") or input("[+] OWNER ID :")
+token = os.environ.get("8516176029:AAHCJPBLTRvWERxDD8ZVpUMmbcYRS0GkskU") or input("[+] TOKEN BOT :")
+owner_id = os.environ.get("8065884629") or input("[+] OWNER ID :")
 Dev_Neptune = token.split(':')[0]
 
 
