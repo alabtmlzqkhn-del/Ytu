@@ -9,18 +9,22 @@ owner_id = "8065884629"
 Dev_Neptune = token.split(':')[0]
 
 
-# 2. محاولة الاتصال بـ Redis (مع محاولات إعادة لأن redis-server قد يحتاج وقت ليبدأ)
+# 2. الاتصال بـ Redis
+# على Railway: أضف خدمة Redis من New -> Database -> Add Redis
+# راح تنضاف تلقائياً متغير بيئة REDIS_URL نستخدمه هنا
+REDIS_URL = os.environ.get("redis://default:nFqeVQriqnXpFInOzCYxSvzHKreFWKvz@redis.railway.internal:6379", "redis://localhost:6379")
 r = None
 for _ in range(15):
     try:
-        r = redis.Redis('localhost', decode_responses=True)
+        r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
         r.ping()
         break
     except Exception:
+        r = None
         time.sleep(1)
 
 if r is None:
-    print("[-] Error: Redis is not running. Please run: sudo systemctl start redis-server")
+    print("[-] Error: Redis is not running. Add a Redis service on Railway (New -> Database -> Add Redis).")
     sys.exit()
 
 print('''
@@ -33,11 +37,11 @@ try:
     Dev_Neptune = token.split(':')[0]
     r.set(f'{Dev_Neptune}botowner', owner_id)
 except:
-    token = input('[+] Enter the bot token : ')
+    token = input ('[+] Enter the bot token : ')
     Dev_Neptune = token.split(':')[0]
     owner_id = int(input('[+] Enter SUDO ID : '))
     r.set(f'{Dev_Neptune}botowner', owner_id)
-    with open('information.py', 'w+') as www:
+    with open ('information.py','w+') as www:
         www.write(f'token = "{token}"\nowner_id = {owner_id}')
 
 print('''
@@ -45,7 +49,7 @@ print('''
 ███▒▒▒▒▒▒▒ ''')
 
 # 4. تجهيز ملف الإعدادات
-to_config = "import redis\nr = redis.Redis('localhost',decode_responses=True)\n"
+to_config = "import os, redis\nr = redis.Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)\n"
 to_config += f"token = '{token}'\n"
 to_config += f"Dev_Neptune = token.split(':')[0]\n"
 to_config += f"sudo_id = {owner_id}\n"
@@ -66,7 +70,7 @@ print('''
 30% 
 █████▒▒▒▒▒ ''')
 
-with open('config.py', 'w+') as w:
+with open('config.py','w+') as w:
     w.write(to_config)
 
 print('''
