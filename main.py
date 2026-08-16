@@ -2,11 +2,10 @@ import time, redis, os, json, re, requests, asyncio, sys
 from pyrogram import *
 
 # 1. تعريف المتغيرات الأساسية فوراً
-# على Railway: يتم أخذ القيم من Environment Variables (TOKEN و OWNER_ID)
-# محلياً (على جهازك): إذا ما كانت موجودة كمتغيرات بيئة، يطلبها بـ input() كالسابق
+# ⚠️ حط توكن البوت الجديد (من BotFather) وآيديك الرقمي هنا بين علامتي التنصيص
 to_config = ""
-token = os.environ.get("8516176029:AAHCJPBLTRvWERxDD8ZVpUMmbcYRS0GkskU") or input("[+] TOKEN BOT :")
-owner_id = os.environ.get("8065884629") or input("[+] OWNER ID :")
+token = "8516176029:AAHCJPBLTRvWERxDD8ZVpUMmbcYRS0GkskU"
+owner_id = "8065884629"
 Dev_Neptune = token.split(':')[0]
 
 
@@ -34,11 +33,11 @@ try:
     Dev_Neptune = token.split(':')[0]
     r.set(f'{Dev_Neptune}botowner', owner_id)
 except:
-    token = input ('[+] Enter the bot token : ')
+    token = input('[+] Enter the bot token : ')
     Dev_Neptune = token.split(':')[0]
     owner_id = int(input('[+] Enter SUDO ID : '))
     r.set(f'{Dev_Neptune}botowner', owner_id)
-    with open ('information.py','w+') as www:
+    with open('information.py', 'w+') as www:
         www.write(f'token = "{token}"\nowner_id = {owner_id}')
 
 print('''
@@ -67,7 +66,7 @@ print('''
 30% 
 █████▒▒▒▒▒ ''')
 
-with open('config.py','w+') as w:
+with open('config.py', 'w+') as w:
     w.write(to_config)
 
 print('''
