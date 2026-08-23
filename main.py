@@ -1,12 +1,10 @@
 import time, redis, os, json, re, requests, asyncio, sys
 from pyrogram import *
 
-# 1. تعريف المتغيرات الأساسية فوراً
-to_config = "" 
-token = input("[+] TOKEN BOT :")
-owner_id = input("[+] OWNER ID :")
-Dev_Neptune = token.split(':')[0]
-
+# قراءة المتغيرات من Railway
+TOKEN = os.getenv("8516176029:AAH7PR35yZigXiBPD65exeMbUDv1KGSGNco")
+OWNER_ID = os.getenv("8065884629")
+REDIS_URL = os.getenv("redis://default:nFqeVQriqnXpFInOzCYxSvzHKreFWKvz@redis.railway.internal:6379")
 
 # 2. محاولة الاتصال بـ Redis
 try:
