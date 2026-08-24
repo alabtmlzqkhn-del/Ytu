@@ -219,7 +219,7 @@ async def to_send(c: Client, m: Message):
                      InlineKeyboardButton(
                            text="لعرض الهمسة",
                            url=url
-                        )
+                        , style="primary")
                      ]
                   ]
                )
@@ -270,18 +270,18 @@ def private_func(c, m, k):
                     "- لتفعيل البوت أرسل كلمة - `تفعيل` ."
                 ),
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton('- ​𓏺 َِ𝗝َِ𝗔َِ!𝗖َِ𝗞 ❂ .', url=f't.me/iJUCK')],
+                    [InlineKeyboardButton('- ​𓏺 َِ𝗝َِ𝗔َِ!𝗖َِ𝗞 ❂ .', url=f't.me/iJUCK', style="primary")],
                     [
-                        InlineKeyboardButton('- المطور', url=f't.me/iJUCK'),
+                        InlineKeyboardButton('- المطور', url=f't.me/iJUCK', style="primary"),
                         InlineKeyboardButton(
                             '- اضفني',
                             url=f'https://t.me/{botUsername}?startgroup=Commands&admin='
                                 'ban_users+restrict_members+delete_messages+add_admins+'
                                 'change_info+invite_users+pin_messages+manage_call+'
                                 'manage_chat+manage_video_chats+promote_members'
-                        )
+                        , style="primary")
                     ],
-                    [InlineKeyboardButton('- لشراء بوت مشابه', url='https://t.me/Jack_Vib')]
+                    [InlineKeyboardButton('- لشراء بوت مشابه', url='https://t.me/Jack_Vib', style="danger")]
                 ])
             )
         else:
@@ -324,19 +324,19 @@ def private_func(c, m, k):
             reply_markup=InlineKeyboardMarkup(
                 [
                     [
-                        InlineKeyboardButton('- 𝟭 -', callback_data=f'commands1:{m.from_user.id}'),
-                        InlineKeyboardButton('- 𝟮 -', callback_data=f'commands2:{m.from_user.id}')
+                        InlineKeyboardButton('- 𝟭 -', callback_data=f'commands1:{m.from_user.id}', style="primary"),
+                        InlineKeyboardButton('- 𝟮 -', callback_data=f'commands2:{m.from_user.id}', style="primary")
                     ],
                     [
-                        InlineKeyboardButton('- 𝟯 -', callback_data=f'commands3:{m.from_user.id}'),
-                        InlineKeyboardButton('- 𝟰 -', callback_data=f'commands5:{m.from_user.id}')
+                        InlineKeyboardButton('- 𝟯 -', callback_data=f'commands3:{m.from_user.id}', style="primary"),
+                        InlineKeyboardButton('- 𝟰 -', callback_data=f'commands5:{m.from_user.id}', style="primary")
                     ],
                     [
-                        InlineKeyboardButton('- التسلية -', callback_data=f'commands4:{m.from_user.id}'),
-                        InlineKeyboardButton('- اليوتيوب -', callback_data=f'commands6:{m.from_user.id}')
+                        InlineKeyboardButton('- التسلية -', callback_data=f'commands4:{m.from_user.id}', style="primary"),
+                        InlineKeyboardButton('- اليوتيوب -', callback_data=f'commands6:{m.from_user.id}', style="primary")
                     ],
                     [
-                        InlineKeyboardButton('sᴏᴜʀᴄᴇ ᴊᴀᴄᴋ', url='https://t.me/Jack_Vib')
+                        InlineKeyboardButton('sᴏᴜʀᴄᴇ ᴊᴀᴄᴋ', url='https://t.me/Jack_Vib', style="primary")
                     ]
                 ]
             )
@@ -353,7 +353,7 @@ def private_func(c, m, k):
 - الاسم المزخرف يتم تصفيته تلقائيًا
 ''',
             reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("‹: sᴏᴜʀᴄᴇ ᴊᴀᴄᴋ :›", url=f't.me/{channel}')]]
+                [[InlineKeyboardButton("‹: sᴏᴜʀᴄᴇ ᴊᴀᴄᴋ :›", url=f't.me/{channel}', style="primary")]]
             )
         )
 
