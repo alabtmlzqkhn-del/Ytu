@@ -2,7 +2,7 @@ import time, redis, os, json, re, requests, asyncio, sys
 from pyrogram import *
 
 # قراءة المتغيرات من Railway
-TOKEN = os.getenv("8516176029:AAH7PR35yZigXiBPD65exeMbUDv1KGSGNco")
+TOKEN = os.getenv("8516176029:AAFZFmZKCRKW7pXcw77mHQtHrUAUk6CWVig")
 OWNER_ID = os.getenv("8065884629")
 REDIS_URL = os.getenv("redis://default:nFqeVQriqnXpFInOzCYxSvzHKreFWKvz@redis.railway.internal:6379")
 
