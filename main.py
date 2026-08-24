@@ -4,7 +4,8 @@ from pyrogram import *
 # قراءة المتغيرات من Railway
 TOKEN = os.getenv("8516176029:AAFZFmZKCRKW7pXcw77mHQtHrUAUk6CWVig")
 OWNER_ID = os.getenv("8065884629")
-REDIS_URL = os.getenv("redis://default:nFqeVQriqnXpFInOzCYxSvzHKreFWKvz@redis.railway.internal:6379")
+REDIS_URL = os.getenv("​rediss://default:VbjnxTMjdotyhDbulOLA4tnt@redis-1-staging-icy-cord.cloud.layerbase.dev:6379
+")
 
 
 # 2. محاولة الاتصال بـ Redis
