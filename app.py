@@ -122,8 +122,8 @@ def delete_user(user_id):
 if __name__=="__main__":
     with app.app_context():
         db.create_all()
-        email=os.environ.get("ADMIN_EMAIL","admin@fadilenSalim.com").lower()
-        password=os.environ.get("ADMIN_PASSWORD","ChangeMe123!")
+        email=os.environ.get("ADMIN_EMAIL","moamel").lower()
+        password=os.environ.get("ADMIN_PASSWORD","moamel")
         if not User.query.filter_by(email=email).first():
             db.session.add(User(email=email,password_hash=generate_password_hash(password),is_admin=True))
             db.session.commit()
