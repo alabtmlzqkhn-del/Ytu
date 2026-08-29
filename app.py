@@ -7,11 +7,22 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "CHANGE-THIS-TO-A-LONG-RANDOM-SECRET")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///site.db")
+
+# 🔥 حل مشكلة صيغة رابط قاعدة البيانات الخاصة بـ Railway
+db_url = os.environ.get("DATABASE_URL", "sqlite:///site.db")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
 app.config["MAX_CONTENT_LENGTH"] = 300 * 1024 * 1024
 db = SQLAlchemy(app)
+
+# 🔥 التأكد من إنشاء مجلد الرفع تلقائياً لعدم حدوث أخطاء بالسيرفر
+if not os.path.exists(app.config["UPLOAD_FOLDER"]):
+    os.makedirs(app.config["UPLOAD_FOLDER"])
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
