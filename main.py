@@ -1,59 +1,46 @@
+# -*- coding: utf-8 -*-
 
 import sys
 import traceback
 
 
 def main():
-    print("=" * 50)
-    print("⚡ جاري تشغيل البوت...")
-    print("=" * 50)
+    print("=" * 60)
+    print("Starting Telegram Bot...")
+    print("Loading bot22.py + botvv.py")
+    print("=" * 60)
 
     try:
-        # استيراد ملف البوت الرئيسي
         import bot22
 
-        print("✓ تم تحميل bot22.py بنجاح")
+        print("✓ bot22.py loaded successfully")
 
-        # التأكد من وجود دالة main
         if not hasattr(bot22, "main"):
-            print("❌ خطأ: لا توجد دالة main() داخل bot22.py")
+            print("❌ ERROR: main() not found in bot22.py")
             sys.exit(1)
 
-        print("✓ تم العثور على دالة main()")
-        print("⚡ بدء تشغيل البوت...")
-        print("=" * 50)
+        print("✓ bot22.py main() found")
+        print("✓ botvv.py is connected from bot22.py")
+        print("⚡ Starting bot...")
+        print("=" * 60)
 
-        # تشغيل البوت
         bot22.main()
 
     except KeyboardInterrupt:
-        print()
-        print("🛑 تم إيقاف البوت.")
+        print("\n🛑 Bot stopped.")
 
     except ModuleNotFoundError as e:
-        print()
-        print("❌ خطأ في استيراد ملف أو مكتبة:")
-        print(f"   {e}")
-        print()
-        print("تأكد من:")
-        print("1. bot22.py موجود بنفس مجلد main.py")
-        print("2. botvv.py موجود بنفس المجلد")
-        print("3. جميع المكتبات المطلوبة مثبتة.")
-        print()
-
+        print("\n❌ Missing module:")
+        print(e)
         traceback.print_exc()
         sys.exit(1)
 
     except Exception as e:
-        print()
-        print("❌ حدث خطأ أثناء تشغيل البوت:")
-        print(f"   {e}")
-        print()
-        print("تفاصيل الخطأ:")
+        print("\n❌ Bot crashed:")
+        print(e)
         traceback.print_exc()
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
-```
