@@ -16,7 +16,6 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
-    KeyboardButtonStyle,
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
     Update,
