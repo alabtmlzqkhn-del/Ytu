@@ -1,11 +1,3 @@
-```python
-# -*- coding: utf-8 -*-
-
-"""
-Main launcher
-يشغل bot22.py فقط.
-كل عملية إنشاء وتشغيل البوت موجودة داخل bot22.py
-"""
 
 import sys
 import traceback
