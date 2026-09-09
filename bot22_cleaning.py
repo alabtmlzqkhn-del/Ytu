@@ -31,6 +31,513 @@ from telegram.ext import (
     TypeHandler,
 )
 
+# ============================================================
+# نظام عدّ الميديا + المسح التلقائي
+# python-telegram-bot
+# بدون Redis / SQLite / Database
+# التخزين مؤقت بالذاكرة RAM
+# ============================================================
+
+import re
+from collections import defaultdict
+
+from telegram import Update
+from telegram.ext import ContextTypes, MessageHandler, filters
+
+
+# ============================================================
+# التخزين المؤقت
+# ============================================================
+
+MEDIA_DATA = defaultdict(lambda: {
+    "photo": 0,
+    "video": 0,
+    "animation": 0,
+    "sticker": 0,
+    "document": 0,
+    "custom_emoji": 0,
+    "link": 0,
+    "messages": set(),
+})
+
+MEDIA_SETTINGS = defaultdict(lambda: {
+    "auto_clear": False,
+    "limit": 100,
+})
+
+
+# ============================================================
+# فحص الرابط
+# ============================================================
+
+def media_has_link(text: str) -> bool:
+    if not text:
+        return False
+
+    pattern = (
+        r"(https?://\S+|"
+        r"www\.\S+|"
+        r"t\.me/\S+|"
+        r"@\w+|"
+        r"\b[\w-]+\."
+        r"(?:com|net|org|me|io|co|ly|tv|xyz|info|site)"
+        r"\b)"
+    )
+
+    return bool(
+        re.search(
+            pattern,
+            text,
+            re.IGNORECASE
+        )
+    )
+
+
+# ============================================================
+# تحديد نوع الميديا
+# ============================================================
+
+def get_media_type(message):
+
+    if message.photo:
+        return "photo"
+
+    if message.video:
+        return "video"
+
+    if message.animation:
+        return "animation"
+
+    if message.sticker:
+        return "sticker"
+
+    if message.document:
+        return "document"
+
+    # Custom Emoji
+    if message.entities:
+
+        for entity in message.entities:
+
+            if entity.type == "custom_emoji":
+                return "custom_emoji"
+
+    # الرابط
+    text = message.text or message.caption or ""
+
+    if media_has_link(text):
+        return "link"
+
+    return None
+
+
+# ============================================================
+# مجموع الميديا
+# ============================================================
+
+def get_media_total(chat_id: int) -> int:
+
+    data = MEDIA_DATA[chat_id]
+
+    return (
+        data["photo"]
+        + data["video"]
+        + data["animation"]
+        + data["sticker"]
+        + data["document"]
+        + data["custom_emoji"]
+        + data["link"]
+    )
+
+
+# ============================================================
+# فحص المدير وفوق
+# ============================================================
+
+def is_media_manager(chat_id: int, user_id: int) -> bool:
+
+    try:
+
+        return (
+            rank_level(
+                get_actor_rank(
+                    chat_id,
+                    user_id
+                )
+            )
+            >= rank_level("مدير")
+        )
+
+    except Exception:
+
+        return False
+
+
+# ============================================================
+# تسجيل الميديا
+# ============================================================
+
+async def media_counter_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    message = update.effective_message
+
+    if not message:
+        return
+
+    if not update.effective_chat:
+        return
+
+    # فقط الكروبات
+    if update.effective_chat.type not in (
+        "group",
+        "supergroup"
+    ):
+        return
+
+    # تجاهل رسائل البوتات
+    if message.from_user and message.from_user.is_bot:
+        return
+
+    media_type = get_media_type(message)
+
+    if not media_type:
+        return
+
+    chat_id = update.effective_chat.id
+
+    # إضافة للعداد
+    MEDIA_DATA[chat_id][media_type] += 1
+
+    # حفظ ID الرسالة للمسح
+    MEDIA_DATA[chat_id]["messages"].add(
+        message.message_id
+    )
+
+    # ========================================================
+    # المسح التلقائي
+    # ========================================================
+
+    settings = MEDIA_SETTINGS[chat_id]
+
+    if not settings["auto_clear"]:
+        return
+
+    total = get_media_total(chat_id)
+
+    if total < settings["limit"]:
+        return
+
+    message_ids = list(
+        MEDIA_DATA[chat_id]["messages"]
+    )
+
+    # حذف على دفعات
+    for start in range(
+        0,
+        len(message_ids),
+        100
+    ):
+
+        batch = message_ids[
+            start:start + 100
+        ]
+
+        try:
+
+            await context.bot.delete_messages(
+                chat_id=chat_id,
+                message_ids=batch
+            )
+
+        except Exception:
+            pass
+
+    # تصفير
+    MEDIA_DATA[chat_id] = {
+        "photo": 0,
+        "video": 0,
+        "animation": 0,
+        "sticker": 0,
+        "document": 0,
+        "custom_emoji": 0,
+        "link": 0,
+        "messages": set(),
+    }
+
+    try:
+
+        await message.reply_text(
+            f"تم المسح التلقائي 🗑\n"
+            f"عدد الميديا: {total}"
+        )
+
+    except Exception:
+        pass
+
+
+# ============================================================
+# أوامر نظام الميديا
+# ============================================================
+
+async def media_commands_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    message = update.effective_message
+
+    if not message:
+        return
+
+    chat = update.effective_chat
+    user = update.effective_user
+
+    if not chat or not user:
+        return
+
+    if chat.type not in (
+        "group",
+        "supergroup"
+    ):
+        return
+
+    text = (
+        message.text or ""
+    ).strip()
+
+    if not text:
+        return
+
+    # ========================================================
+    # الصلاحية
+    # مدير وفوق
+    # ========================================================
+
+    if not is_media_manager(
+        chat.id,
+        user.id
+    ):
+        return
+
+    # ========================================================
+    # امسح
+    # ========================================================
+
+    if text == "امسح":
+
+        data = MEDIA_DATA[chat.id]
+
+        total = get_media_total(
+            chat.id
+        )
+
+        if total == 0:
+
+            await message.reply_text(
+                "ماكو ميديا مسجلة للمسح."
+            )
+
+            return
+
+        message_ids = list(
+            data["messages"]
+        )
+
+        deleted = 0
+
+        for start in range(
+            0,
+            len(message_ids),
+            100
+        ):
+
+            batch = message_ids[
+                start:start + 100
+            ]
+
+            try:
+
+                await context.bot.delete_messages(
+                    chat_id=chat.id,
+                    message_ids=batch
+                )
+
+                deleted += len(batch)
+
+            except Exception:
+                pass
+
+        # تصفير البيانات
+        MEDIA_DATA[chat.id] = {
+            "photo": 0,
+            "video": 0,
+            "animation": 0,
+            "sticker": 0,
+            "document": 0,
+            "custom_emoji": 0,
+            "link": 0,
+            "messages": set(),
+        }
+
+        await message.reply_text(
+            f"تم مسح الميديا بنجاح 🗑\n"
+            f"العدد: {total}"
+        )
+
+        return
+
+    # ========================================================
+    # عدد الميديا
+    # ========================================================
+
+    if text == "عدد الميديا":
+
+        data = MEDIA_DATA[chat.id]
+
+        total = get_media_total(
+            chat.id
+        )
+
+        await message.reply_text(
+            "إحصائيات الميديا:\n\n"
+            f"🖼 الصور: {data['photo']}\n"
+            f"🎥 الفيديوهات: {data['video']}\n"
+            f"🎞 المتحركة: {data['animation']}\n"
+            f"🎭 الستيكرات: {data['sticker']}\n"
+            f"📁 الملفات: {data['document']}\n"
+            f"😀 الإيموجي المخصص: {data['custom_emoji']}\n"
+            f"🔗 الروابط: {data['link']}\n\n"
+            f"📊 المجموع: {total}"
+        )
+
+        return
+
+    # ========================================================
+    # تفعيل المسح التلقائي
+    # ========================================================
+
+    if text == "تفعيل المسح التلقائي":
+
+        MEDIA_SETTINGS[chat.id][
+            "auto_clear"
+        ] = True
+
+        await message.reply_text(
+            "تم تفعيل المسح التلقائي ✅"
+        )
+
+        return
+
+    # ========================================================
+    # تعطيل المسح التلقائي
+    # ========================================================
+
+    if text == "تعطيل المسح التلقائي":
+
+        MEDIA_SETTINGS[chat.id][
+            "auto_clear"
+        ] = False
+
+        await message.reply_text(
+            "تم تعطيل المسح التلقائي ❌"
+        )
+
+        return
+
+    # ========================================================
+    # ضع عدد المسح 100
+    # ========================================================
+
+    match = re.fullmatch(
+        r"ضع عدد المسح\s+(\d+)",
+        text
+    )
+
+    if match:
+
+        limit = int(
+            match.group(1)
+        )
+
+        if limit < 1:
+
+            await message.reply_text(
+                "العدد يجب أن يكون أكبر من 0."
+            )
+
+            return
+
+        if limit > 100000:
+
+            await message.reply_text(
+                "الحد الأقصى هو 100000."
+            )
+
+            return
+
+        MEDIA_SETTINGS[chat.id][
+            "limit"
+        ] = limit
+
+        await message.reply_text(
+            f"تم تحديد المسح التلقائي على {limit} ميديا."
+        )
+
+        return
+
+    # ========================================================
+    # اعدادات المسح
+    # ========================================================
+
+    if text == "اعدادات المسح":
+
+        settings = MEDIA_SETTINGS[
+            chat.id
+        ]
+
+        status = (
+            "مفعل ✅"
+            if settings["auto_clear"]
+            else "معطل ❌"
+        )
+
+        total = get_media_total(
+            chat.id
+        )
+
+        await message.reply_text(
+            "إعدادات المسح:\n\n"
+            f"المسح التلقائي: {status}\n"
+            f"حد المسح: {settings['limit']}\n"
+            f"الميديا الحالية: {total}"
+        )
+
+        return
+
+
+# ============================================================
+# تسجيل الـ Handlers
+# ============================================================
+
+MEDIA_COUNTER_HANDLER = MessageHandler(
+    filters.ChatType.GROUPS,
+    media_counter_handler
+)
+
+
+MEDIA_COMMANDS_HANDLER = MessageHandler(
+    filters.ChatType.GROUPS
+    & filters.TEXT
+    & ~filters.COMMAND,
+    media_commands_handler
+    )
+
+
+
+
 # ─── ثوابت البوت (مدمجة مباشرة) ─────────────────────────────────
 
 RANKS_ORDER = [
