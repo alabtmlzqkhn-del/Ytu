@@ -31,508 +31,483 @@ from telegram.ext import (
     TypeHandler,
 )
 
-# ============================================================
-# نظام عدّ الميديا + المسح التلقائي
-# python-telegram-bot
-# بدون Redis / SQLite / Database
-# التخزين مؤقت بالذاكرة RAM
-# ============================================================
+#
+# ================================================================
+# SMART CLEANER / MEDIA CLEANER
+# بدون Redis - بدون Database
+# مدير فما فوق
+# ================================================================
 
 import re
 from collections import defaultdict
 
-from telegram import Update
-from telegram.ext import ContextTypes, MessageHandler, filters
+# ----------------------------------------------------------------
+# تخزين مؤقت بالرام فقط
+# ----------------------------------------------------------------
 
-
-# ============================================================
-# التخزين المؤقت
-# ============================================================
-
-MEDIA_DATA = defaultdict(lambda: {
-    "photo": 0,
-    "video": 0,
-    "animation": 0,
-    "sticker": 0,
-    "document": 0,
-    "custom_emoji": 0,
-    "link": 0,
-    "messages": set(),
+_SMART_CLEAN_DATA = defaultdict(lambda: {
+    "messages": [],
+    "media": [],
 })
 
-MEDIA_SETTINGS = defaultdict(lambda: {
-    "auto_clear": False,
+_SMART_CLEAN_SETTINGS = defaultdict(lambda: {
+    "auto": False,
     "limit": 100,
 })
 
 
-# ============================================================
-# فحص الرابط
-# ============================================================
+# ----------------------------------------------------------------
+# فحص رتبة المستخدم
+# ----------------------------------------------------------------
 
-def media_has_link(text: str) -> bool:
-    if not text:
+def _smart_clean_is_manager(chat_id: int, user_id: int) -> bool:
+    try:
+        return (
+            rank_level(get_actor_rank(chat_id, user_id))
+            >= rank_level("مدير")
+        )
+    except Exception:
         return False
 
-    pattern = (
-        r"(https?://\S+|"
-        r"www\.\S+|"
-        r"t\.me/\S+|"
-        r"@\w+|"
-        r"\b[\w-]+\."
-        r"(?:com|net|org|me|io|co|ly|tv|xyz|info|site)"
-        r"\b)"
-    )
 
-    return bool(
-        re.search(
-            pattern,
-            text,
-            re.IGNORECASE
-        )
-    )
+# ----------------------------------------------------------------
+# معرفة نوع الميديا
+# ----------------------------------------------------------------
 
-
-# ============================================================
-# تحديد نوع الميديا
-# ============================================================
-
-def get_media_type(message):
-
+def _smart_clean_media_type(message):
     if message.photo:
-        return "photo"
+        return "صور"
 
     if message.video:
-        return "video"
+        return "فيديوهات"
 
     if message.animation:
-        return "animation"
+        return "متحركات"
 
     if message.sticker:
-        return "sticker"
+        return "ملصقات"
 
     if message.document:
-        return "document"
+        return "ملفات"
+
+    if message.audio:
+        return "صوتيات"
+
+    if message.voice:
+        return "بصمات"
+
+    if message.video_note:
+        return "فيديو دائري"
 
     # Custom Emoji
-    if message.entities:
+    try:
+        entities = message.entities or []
+        caption_entities = message.caption_entities or []
 
-        for entity in message.entities:
-
-            if entity.type == "custom_emoji":
-                return "custom_emoji"
-
-    # الرابط
-    text = message.text or message.caption or ""
-
-    if media_has_link(text):
-        return "link"
+        for entity in entities + caption_entities:
+            if entity.type == MessageEntity.CUSTOM_EMOJI:
+                return "ايموجي مخصص"
+    except Exception:
+        pass
 
     return None
 
 
-# ============================================================
-# مجموع الميديا
-# ============================================================
+# ----------------------------------------------------------------
+# فحص الرابط
+# ----------------------------------------------------------------
 
-def get_media_total(chat_id: int) -> int:
+def _smart_clean_has_link(message):
+    text = message.text or message.caption or ""
 
-    data = MEDIA_DATA[chat_id]
-
-    return (
-        data["photo"]
-        + data["video"]
-        + data["animation"]
-        + data["sticker"]
-        + data["document"]
-        + data["custom_emoji"]
-        + data["link"]
-    )
-
-
-# ============================================================
-# فحص المدير وفوق
-# ============================================================
-
-def is_media_manager(chat_id: int, user_id: int) -> bool:
+    if re.search(
+        r"(https?://|www\.|t\.me/|telegram\.me/)",
+        text,
+        re.IGNORECASE
+    ):
+        return True
 
     try:
-
-        return (
-            rank_level(
-                get_actor_rank(
-                    chat_id,
-                    user_id
-                )
-            )
-            >= rank_level("مدير")
+        entities = (message.entities or []) + (
+            message.caption_entities or []
         )
 
-    except Exception:
-
-        return False
-
-
-# ============================================================
-# تسجيل الميديا
-# ============================================================
-
-async def media_counter_handler(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
-
-    message = update.effective_message
-
-    if not message:
-        return
-
-    if not update.effective_chat:
-        return
-
-    # فقط الكروبات
-    if update.effective_chat.type not in (
-        "group",
-        "supergroup"
-    ):
-        return
-
-    # تجاهل رسائل البوتات
-    if message.from_user and message.from_user.is_bot:
-        return
-
-    media_type = get_media_type(message)
-
-    if not media_type:
-        return
-
-    chat_id = update.effective_chat.id
-
-    # إضافة للعداد
-    MEDIA_DATA[chat_id][media_type] += 1
-
-    # حفظ ID الرسالة للمسح
-    MEDIA_DATA[chat_id]["messages"].add(
-        message.message_id
-    )
-
-    # ========================================================
-    # المسح التلقائي
-    # ========================================================
-
-    settings = MEDIA_SETTINGS[chat_id]
-
-    if not settings["auto_clear"]:
-        return
-
-    total = get_media_total(chat_id)
-
-    if total < settings["limit"]:
-        return
-
-    message_ids = list(
-        MEDIA_DATA[chat_id]["messages"]
-    )
-
-    # حذف على دفعات
-    for start in range(
-        0,
-        len(message_ids),
-        100
-    ):
-
-        batch = message_ids[
-            start:start + 100
-        ]
-
-        try:
-
-            await context.bot.delete_messages(
-                chat_id=chat_id,
-                message_ids=batch
-            )
-
-        except Exception:
-            pass
-
-    # تصفير
-    MEDIA_DATA[chat_id] = {
-        "photo": 0,
-        "video": 0,
-        "animation": 0,
-        "sticker": 0,
-        "document": 0,
-        "custom_emoji": 0,
-        "link": 0,
-        "messages": set(),
-    }
-
-    try:
-
-        await message.reply_text(
-            f"تم المسح التلقائي 🗑\n"
-            f"عدد الميديا: {total}"
-        )
+        for entity in entities:
+            if entity.type in (
+                MessageEntity.URL,
+                MessageEntity.TEXT_LINK,
+            ):
+                return True
 
     except Exception:
         pass
 
+    return False
 
-# ============================================================
-# أوامر نظام الميديا
-# ============================================================
 
-async def media_commands_handler(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
+# ----------------------------------------------------------------
+# تسجيل الرسائل
+# ----------------------------------------------------------------
 
+async def _smart_clean_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
+    chat = update.effective_chat
 
-    if not message:
+    if not message or not chat:
         return
 
+    if chat.type not in ("group", "supergroup"):
+        return
+
+    chat_id = chat.id
+
+    # نحفظ ID الرسالة
+    data = _SMART_CLEAN_DATA[chat_id]
+
+    data["messages"].append(message.message_id)
+
+    # لا نخلي الرام تكبر بلا حدود
+    if len(data["messages"]) > 3000:
+        data["messages"] = data["messages"][-3000:]
+
+    media_type = _smart_clean_media_type(message)
+
+    if media_type:
+        data["media"].append(message.message_id)
+
+    elif _smart_clean_has_link(message):
+        data["media"].append(message.message_id)
+
+    # حذف تلقائي عند الوصول للعدد
+    settings = _SMART_CLEAN_SETTINGS[chat_id]
+
+    if settings["auto"] and len(data["media"]) >= settings["limit"]:
+
+        ids = data["media"][:settings["limit"]]
+
+        # نفرغ القائمة قبل الحذف حتى ما يصير تكرار
+        data["media"] = data["media"][settings["limit"]:]
+
+        for i in range(0, len(ids), 100):
+
+            batch = ids[i:i + 100]
+
+            for message_id in batch:
+                try:
+                    await context.bot.delete_message(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                    )
+                except Exception:
+                    pass
+
+
+# ----------------------------------------------------------------
+# حذف عدد من الرسائل
+# ----------------------------------------------------------------
+
+async def _smart_clean_delete_messages(
+    context,
+    chat_id: int,
+    message_ids: list
+) -> int:
+
+    deleted = 0
+
+    # Telegram يسمح بالحذف الفردي عن طريق Bot API
+    # نخليها دفعات منطقية حتى ما نسوي ضغط كبير
+    for message_id in message_ids:
+
+        try:
+            await context.bot.delete_message(
+                chat_id=chat_id,
+                message_id=message_id,
+            )
+
+            deleted += 1
+
+        except Exception:
+            pass
+
+    return deleted
+
+
+# ----------------------------------------------------------------
+# أمر التنظيف
+# ----------------------------------------------------------------
+
+async def _smart_clean_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    message = update.effective_message
     chat = update.effective_chat
     user = update.effective_user
 
-    if not chat or not user:
+    if not message or not chat or not user:
         return
 
-    if chat.type not in (
-        "group",
-        "supergroup"
+    if chat.type not in ("group", "supergroup"):
+        return
+
+    text = (message.text or "").strip()
+
+    # ------------------------------------------------------------
+    # الصلاحيات
+    # ------------------------------------------------------------
+
+    if not _smart_clean_is_manager(chat.id, user.id):
+        return
+
+    # ------------------------------------------------------------
+    # تنظيف الميديا
+    # ------------------------------------------------------------
+
+    if text in (
+        "تنظيف ميديا",
+        "تنظيف الوسائط",
+        "مسح الميديا",
+        "مسح الوسائط",
     ):
-        return
 
-    text = (
-        message.text or ""
-    ).strip()
+        data = _SMART_CLEAN_DATA[chat.id]
 
-    if not text:
-        return
+        ids = list(dict.fromkeys(data["media"]))
 
-    # ========================================================
-    # الصلاحية
-    # مدير وفوق
-    # ========================================================
-
-    if not is_media_manager(
-        chat.id,
-        user.id
-    ):
-        return
-
-    # ========================================================
-    # امسح
-    # ========================================================
-
-    if text == "امسح":
-
-        data = MEDIA_DATA[chat.id]
-
-        total = get_media_total(
-            chat.id
-        )
-
-        if total == 0:
-
+        if not ids:
             await message.reply_text(
-                "ماكو ميديا مسجلة للمسح."
+                "- ماكو ميديا مسجلة للحذف حالياً ."
             )
-
             return
 
-        message_ids = list(
-            data["messages"]
+        # نفرغها قبل التنفيذ
+        data["media"].clear()
+
+        deleted = await _smart_clean_delete_messages(
+            context,
+            chat.id,
+            ids,
         )
 
-        deleted = 0
-
-        for start in range(
-            0,
-            len(message_ids),
-            100
-        ):
-
-            batch = message_ids[
-                start:start + 100
-            ]
-
-            try:
-
-                await context.bot.delete_messages(
-                    chat_id=chat.id,
-                    message_ids=batch
-                )
-
-                deleted += len(batch)
-
-            except Exception:
-                pass
-
-        # تصفير البيانات
-        MEDIA_DATA[chat.id] = {
-            "photo": 0,
-            "video": 0,
-            "animation": 0,
-            "sticker": 0,
-            "document": 0,
-            "custom_emoji": 0,
-            "link": 0,
-            "messages": set(),
-        }
-
-        await message.reply_text(
-            f"تم مسح الميديا بنجاح 🗑\n"
-            f"العدد: {total}"
-        )
+        try:
+            await message.delete()
+        except Exception:
+            pass
 
         return
 
-    # ========================================================
+    # ------------------------------------------------------------
     # عدد الميديا
-    # ========================================================
+    # ------------------------------------------------------------
 
-    if text == "عدد الميديا":
+    if text in (
+        "عدد الميديا",
+        "عدد الوسائط",
+        "احصائيات الميديا",
+    ):
 
-        data = MEDIA_DATA[chat.id]
+        data = _SMART_CLEAN_DATA[chat.id]
 
-        total = get_media_total(
-            chat.id
-        )
+        count = len(data["media"])
+        total = len(data["messages"])
+
+        settings = _SMART_CLEAN_SETTINGS[chat.id]
+
+        status = "مفعل" if settings["auto"] else "معطل"
 
         await message.reply_text(
-            "إحصائيات الميديا:\n\n"
-            f"🖼 الصور: {data['photo']}\n"
-            f"🎥 الفيديوهات: {data['video']}\n"
-            f"🎞 المتحركة: {data['animation']}\n"
-            f"🎭 الستيكرات: {data['sticker']}\n"
-            f"📁 الملفات: {data['document']}\n"
-            f"😀 الإيموجي المخصص: {data['custom_emoji']}\n"
-            f"🔗 الروابط: {data['link']}\n\n"
-            f"📊 المجموع: {total}"
+            f"- إحصائيات التنظيف\n\n"
+            f"• الرسائل المسجلة : {total}\n"
+            f"• الميديا المسجلة : {count}\n"
+            f"• المسح التلقائي : {status}\n"
+            f"• حد المسح : {settings['limit']}"
         )
 
         return
 
-    # ========================================================
+    # ------------------------------------------------------------
     # تفعيل المسح التلقائي
-    # ========================================================
+    # ------------------------------------------------------------
 
-    if text == "تفعيل المسح التلقائي":
+    if text in (
+        "تفعيل المسح التلقائي",
+        "تفعيل التنظيف التلقائي",
+    ):
 
-        MEDIA_SETTINGS[chat.id][
-            "auto_clear"
-        ] = True
+        _SMART_CLEAN_SETTINGS[chat.id]["auto"] = True
 
         await message.reply_text(
-            "تم تفعيل المسح التلقائي ✅"
+            f"- تم تفعيل المسح التلقائي .\n"
+            f"- العدد الحالي : {_SMART_CLEAN_SETTINGS[chat.id]['limit']}"
         )
 
         return
 
-    # ========================================================
+    # ------------------------------------------------------------
     # تعطيل المسح التلقائي
-    # ========================================================
+    # ------------------------------------------------------------
 
-    if text == "تعطيل المسح التلقائي":
+    if text in (
+        "تعطيل المسح التلقائي",
+        "تعطيل التنظيف التلقائي",
+    ):
 
-        MEDIA_SETTINGS[chat.id][
-            "auto_clear"
-        ] = False
+        _SMART_CLEAN_SETTINGS[chat.id]["auto"] = False
 
         await message.reply_text(
-            "تم تعطيل المسح التلقائي ❌"
+            "- تم تعطيل المسح التلقائي ."
         )
 
         return
 
-    # ========================================================
-    # ضع عدد المسح 100
-    # ========================================================
+    # ------------------------------------------------------------
+    # تحديد العدد
+    # ------------------------------------------------------------
 
     match = re.fullmatch(
-        r"ضع عدد المسح\s+(\d+)",
+        r"(?:ضع عدد المسح|عدد المسح|حد المسح)\s+(\d+)",
         text
     )
 
     if match:
 
-        limit = int(
-            match.group(1)
-        )
+        limit = int(match.group(1))
 
-        if limit < 1:
-
+        if limit < 1 or limit > 1000:
             await message.reply_text(
-                "العدد يجب أن يكون أكبر من 0."
+                "- العدد يجب أن يكون بين 1 و 1000 ."
             )
-
             return
 
-        if limit > 100000:
-
-            await message.reply_text(
-                "الحد الأقصى هو 100000."
-            )
-
-            return
-
-        MEDIA_SETTINGS[chat.id][
-            "limit"
-        ] = limit
+        _SMART_CLEAN_SETTINGS[chat.id]["limit"] = limit
 
         await message.reply_text(
-            f"تم تحديد المسح التلقائي على {limit} ميديا."
+            f"- تم تحديد عدد المسح التلقائي : {limit}"
         )
 
         return
 
-    # ========================================================
-    # اعدادات المسح
-    # ========================================================
+    # ------------------------------------------------------------
+    # تنظيف بدون رقم = 100
+    # ------------------------------------------------------------
 
-    if text == "اعدادات المسح":
+    if text in (
+        "تنظيف",
+        "تنظيف الكل",
+        "مسح الكل",
+    ):
 
-        settings = MEDIA_SETTINGS[
-            chat.id
+        count = 100
+
+    else:
+
+        match = re.fullmatch(
+            r"(?:تنظيف|مسح)\s+(\d+)",
+            text
+        )
+
+        if not match:
+            return
+
+        count = int(match.group(1))
+
+    # ------------------------------------------------------------
+    # الحد الأعلى
+    # ------------------------------------------------------------
+
+    if count < 1:
+        return
+
+    if count > 1000:
+        await message.reply_text(
+            "- الحد الأقصى للتنظيف هو 1000 رسالة ."
+        )
+        return
+
+    # ------------------------------------------------------------
+    # أخذ الرسائل السابقة
+    # ------------------------------------------------------------
+
+    data = _SMART_CLEAN_DATA[chat.id]
+
+    current_id = message.message_id - 1
+
+    ids = []
+
+    # أولاً نستخدم الرسائل المسجلة
+    registered = [
+        x for x in data["messages"]
+        if x < message.message_id
+    ]
+
+    registered = list(dict.fromkeys(registered))
+
+    if registered:
+
+        ids = registered[-count:]
+
+    # إذا ما عدنا تسجيل كافي، نحاول IDs السابقة
+    if len(ids) < count:
+
+        needed = count - len(ids)
+
+        existing = set(ids)
+
+        candidate = current_id
+
+        while needed > 0 and candidate > 0:
+
+            if candidate not in existing:
+
+                ids.append(candidate)
+                needed -= 1
+
+            candidate -= 1
+
+    # ------------------------------------------------------------
+    # حذف
+    # ------------------------------------------------------------
+
+    deleted = await _smart_clean_delete_messages(
+        context,
+        chat.id,
+        ids,
+    )
+
+    # تنظيف الذاكرة
+    if ids:
+
+        id_set = set(ids)
+
+        data["messages"] = [
+            x for x in data["messages"]
+            if x not in id_set
         ]
 
-        status = (
-            "مفعل ✅"
-            if settings["auto_clear"]
-            else "معطل ❌"
-        )
+        data["media"] = [
+            x for x in data["media"]
+            if x not in id_set
+        ]
 
-        total = get_media_total(
-            chat.id
-        )
-
-        await message.reply_text(
-            "إعدادات المسح:\n\n"
-            f"المسح التلقائي: {status}\n"
-            f"حد المسح: {settings['limit']}\n"
-            f"الميديا الحالية: {total}"
-        )
-
-        return
+    # حذف أمر التنظيف نفسه
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
-# ============================================================
-# تسجيل الـ Handlers
-# ============================================================
+# ================================================================
+# HANDLERS
+# ================================================================
 
-MEDIA_COUNTER_HANDLER = MessageHandler(
+_SMART_CLEAN_COUNTER_HANDLER = MessageHandler(
     filters.ChatType.GROUPS,
-    media_counter_handler
+    _smart_clean_counter,
 )
 
-
-MEDIA_COMMANDS_HANDLER = MessageHandler(
-    filters.ChatType.GROUPS
-    & filters.TEXT
+_SMART_CLEAN_COMMAND_HANDLER = MessageHandler(
+    filters.TEXT
+    & filters.ChatType.GROUPS
     & ~filters.COMMAND,
-    media_commands_handler
+    _smart_clean_command,
     )
 
 # ─── ثوابت البوت (مدمجة مباشرة) ─────────────────────────────────
