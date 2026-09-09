@@ -30,6 +30,11 @@ from telegram.ext import (
     CallbackQueryHandler,
     TypeHandler,
 )
+try:
+    import static_ffmpeg
+    static_ffmpeg.add_paths()
+except ImportError:
+    pass
 
 # ==========================================
 # هاندر روابط الكروب 
