@@ -1,4 +1,6 @@
 {
   "providers": ["python"],
-  "aptPkgs": ["ffmpeg"]
+  "pkgs": [
+    "ffmpeg"
+  ]
 }
