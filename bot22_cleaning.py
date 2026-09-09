@@ -32,6 +32,7 @@ from telegram.ext import (
 )
 
 #
+
 # ================================================================
 # SMART CLEANER / MEDIA CLEANER
 # بدون Redis - بدون Database
@@ -508,8 +509,7 @@ _SMART_CLEAN_COMMAND_HANDLER = MessageHandler(
     & filters.ChatType.GROUPS
     & ~filters.COMMAND,
     _smart_clean_command,
-    )
-
+)
 # ─── ثوابت البوت (مدمجة مباشرة) ─────────────────────────────────
 
 RANKS_ORDER = [
