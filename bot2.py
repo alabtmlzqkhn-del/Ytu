@@ -389,16 +389,15 @@ async def media_cleaner_commands(
 # إضافة الـ Handlers
 # ============================================================
 
-app.add_handler(
+    app.add_handler(
     MessageHandler(
         filters.ChatType.GROUPS,
         media_cleaner_tracker
     ),
-    group=90
-)
+    group=90)
 
 
-app.add_handler(
+    app.add_handler(
     MessageHandler(
         filters.ChatType.GROUPS
         & filters.TEXT
@@ -407,8 +406,7 @@ app.add_handler(
         ),
         media_cleaner_commands
     ),
-    group=91
-)
+    group=91)
 
 
 # ══════════════════════════════════════════════════════════════
