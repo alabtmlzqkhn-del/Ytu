@@ -10586,6 +10586,38 @@ async def reveal_id_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 
+def parse_promote_command(text: str) -> tuple:
+    text = (text or "").strip()
+
+    # رفع مطور اساسي = داخلياً مطور اساسي²
+    if text == "رفع مطور اساسي":
+        return "مطور اساسي²", None
+
+    if text.startswith("رفع مطور اساسي "):
+        target = text[len("رفع مطور اساسي "):].strip()
+
+        if target.startswith("@") or target.lstrip("-").isdigit():
+            return "مطور اساسي²", target
+
+    # باقي الرتب
+    if not text.startswith("رفع"):
+        return None, None
+
+    rest = text[len("رفع"):].strip()
+
+    for rank in sorted(PROMOTABLE_RANKS, key=len, reverse=True):
+        if rest.startswith(rank):
+            after = rest[len(rank):].strip()
+
+            if (
+                after == ""
+                or after.startswith("@")
+                or after.lstrip("-").isdigit()
+            ):
+                return rank, after if after else None
+
+    return None, None
+
 async def rank_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = update.message
     if not msg or not msg.text:
