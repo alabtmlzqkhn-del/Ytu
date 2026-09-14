@@ -47,7 +47,7 @@ async def kiss_handler(
     if not msg or not user:
         return
 
-    # يشتغل فقط بالرد
+    # إذا "مح" بدون رد، ما يرد نهائياً
     if not msg.reply_to_message:
         return
 
@@ -56,13 +56,24 @@ async def kiss_handler(
     if not target:
         return
 
-    actor_name = escape_html(user.full_name)
-    target_name = escape_html(target.full_name)
+    # تاك للشخص اللي تم تقبيله
+    target_mention = (
+        f'<a href="tg://user?id={target.id}">'
+        f'{escape_html(target.full_name)}'
+        f'</a>'
+    )
+
+    # تاك للشخص اللي كتب "مح"
+    actor_mention = (
+        f'<a href="tg://user?id={user.id}">'
+        f'{escape_html(user.full_name)}'
+        f'</a>'
+    )
 
     await msg.reply_text(
-        f'تم تقبيلك ي " {target_name} " من قبل " {actor_name} " 💋💋',
-        parse_mode="HTML"
-    )
+        f'تم تقبيلك ي " {target_mention} " '
+        f'من قبل " {actor_mention} " 💋💋',
+        parse_mode="HTML")
 
 # ═══════════════════════════════════════════════════════════════
 # رتب الترفيه الجديدة
